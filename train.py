@@ -11,10 +11,10 @@ import torch.backends.cudnn as cudnn
 from torch.nn.parameter import Parameter
 
 
-transform1 = transforms.Compose([transforms.ToTensor(),transforms.RandomHorizontalFlip(),transforms.RandomCrop((448,448)),transforms.Normalize(mean= ( 0.44731586 ,0.47744268,  0.49484214),std = ( 0.225 , 0.225 , 0.225))])
-transform2 = transforms.Compose([transforms.ToTensor,transforms.Normalize(mean=( 0.44731586 ,0.47744268,  0.49484214),std = ( 0.225 , 0.225 , 0.225))])
-trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/scene_train_annotations_20170904.json',train = True,transform = transform1)
-testset = Loader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_annotations_20170908.json',train=False,transform=transform2)
+transform1 = transforms.Compose([transforms.ToPILImage(),transforms.RandomHorizontalFlip(),transforms.RandomCrop((448,448)),transforms.ToTensor(),transforms.Normalize(mean= ( 0.44731586 ,0.47744268,  0.49484214),std = ( 0.225 , 0.225 , 0.225))])
+transform2 = transforms.Compose([transforms.ToTensor(),transforms.Normalize(mean=( 0.44731586 ,0.47744268,  0.49484214),std = ( 0.225 , 0.225 , 0.225))])
+trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/scene_train_annotations_20170904.json',train = True,transform = transform1,size= 512)
+testset = Loader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_annotations_20170908.json',train=False,transform=transform2,size=448)
 # trainset = Indoor(root = '/home/zhou/Images',list_file = 'TrainImages.txt',train= True,transform=transform)
 # testset = Indoor(root = '/home/zhou/Images',list_file = 'TestImages.txt',train= False,transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset,batch_size = 16,shuffle = True,num_workers = 4)
@@ -28,12 +28,14 @@ weight_decay = 1e-4
 start_epoch = 0
 max_epoch = 50
 resume = False
-
+momentum = 0.9
 
 
 net = densenet121(False)
 net = torch.nn.DataParallel(net,device_ids=[0,1])
 net.cuda()
+
+
 if resume:
     net.load_state_dict(torch.load('dilation/epoch_33_top1_0.566_top3_0.759.pkl'))
     # state_dict =torch.load('densenet121-241335ed.pth')
@@ -56,11 +58,12 @@ if resume:
     #     pass
 
 
-
 cudnn.benchmark = True
+
+#steps when lr decays
 steps = [5,10,20]
 
-optimizer = optim.SGD(net.parameters(),lr = lr,momentum=0.9,weight_decay=weight_decay )
+optimizer = optim.SGD(net.parameters(),lr = lr,momentum=momentum,weight_decay=weight_decay )
 
 for epoch in range(start_epoch,max_epoch):
     print 'epoch:',epoch

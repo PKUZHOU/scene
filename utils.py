@@ -9,12 +9,12 @@ import torch.utils.data as data
 
 import h5py
 class Loader(data.Dataset):
-    image_size =448
-    def __init__(self,root,list_file,train,transform ):
+
+    def __init__(self,root,list_file,train,transform,size ):
         self.root = root
         self.train = train
         self.transform = transform
-
+        self.image_size = 448
         f = open(list_file, 'r')
         self.datas = json.load(f)
         self.num_samples = len(self.datas)
