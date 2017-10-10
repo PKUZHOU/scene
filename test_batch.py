@@ -3,8 +3,8 @@ import torch
 from utils import Loader,testLoader
 import torchvision.transforms as transforms
 import torchvision
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 from Network import densenet121
 import torch.optim as optim
@@ -108,15 +108,16 @@ dic3 = dict(zip(table.values(),[0]*80))
 # plt.show(plt.hist(x = hs,bins = 80))
 #
 
-from augmentations import Augmentation
+
 transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize(mean= ( 0.44731586 ,0.47744268,  0.49484214),std = ( 0.225 , 0.225 , 0.225))])
-trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/scene_train_annotations_20170904.json',train = True,transform = Augmentation(),size= 299)
-# testset = testLoader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='en_trainlist.json',train=False,transform=Augmentation(),size=299)
+trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/scene_train_annotations_20170904.json',train = True,transform = transform,size= 299)
+testset = testLoader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='en_trainlist.json',train=False,transform=transform,size=299)
+trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/merge_temp/store.txt',train = False,transform = transform,size=299)
 
 # trainset = Loader(root = '/home/zhou/ai_challenger_scene_train_20170904/scene_train_images_20170904',list_file='/home/zhou/ai_challenger_scene_train_20170904/trainlist.json',train = True,transform = transform)
-testset = testLoader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_annotations_20170908.json',train=False,transform=None,size=299)
+# testset = testLoader(root = '/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_images_20170908',list_file='/home/zhou/ai_challenger_scene_validation_20170908/scene_validation_annotations_20170908.json',train=False,transform=transform,size=299)
 # trainloader = torch.utils.data.DataLoader(trainset,batch_size = 16,shuffle = True,num_workers = 4)
-testloader = torch.utils.data.DataLoader(testset,batch_size = 32,shuffle = False,num_workers = 8)
+testloader = torch.utils.data.DataLoader(trainset,batch_size = 32,shuffle = False,num_workers = 4)
 # net = torchvision.models.resnet101(pretrained=False)
 # net = resnet50(pretrained=False,num_classes=80)
 net = inceptionresnetv2(num_classes=1000)
@@ -127,31 +128,19 @@ net = torch.nn.DataParallel(net,device_ids=[0,1])
 net.cuda()
 net.eval()
 cudnn.benchmark = True
-net.load_state_dict(torch.load('soft_label/epoch_5_top1_0.817_top3_0.947.pkl'))
+net.load_state_dict(torch.load('soft_label/epoch_7_top1_0.820_top3_0.944.pkl'))
 counter = 0
 correct = 0
 top1 = 0
 top3 = 0
 counter = 0
-lenth = len(testset)
-
-augmentation = Augmentation()
-for batch_id in range(lenth):
-    image,target = testset.__getitem__(batch_id)
-    images = [transform(image)]
-    for i in range(9):
-        ag_image = augmentation(image)
-        images.append(ag_image)
-    images = torch.stack(images,0)
+for batch_id, (images, target) in enumerate(testloader):
     images = Variable(images.cuda())
-    out=F.softmax(net(images)[:,:80
-                  ]).cpu().data
-    out = out.sum(0).unsqueeze(0)
-
+    out = net(images).cpu().data[:,:80]
     size = out.size(0)
     _, max = torch.max(out,1)
     for i in range(size):
-        label = target
+        label = target[i]
         pred = out[i][label]
         dic2[table[label]] += 1
         topk=0
@@ -166,9 +155,10 @@ for batch_id in range(lenth):
             dic1[table[label]]+=1
 
 
-        elif 0<topk<=2:
+        elif 0<topk\
+                <=2:
             top3+=1
-            dic1[table[label]] += 1
+            # dic1[table[label]] += 1
         # print 'true:',table[label]
         # print 'pred:',table[max[i][0]]
         # # if table[label] == 'lake/river':
@@ -177,7 +167,7 @@ for batch_id in range(lenth):
         # image = (image * [0.225, 0.225, 0.225] + [0.44731586, 0.47744268, 0.49484214])
         # cv2.imshow('test', image)
         # cv2.waitKey()
-    counter +=1
+    counter +=32
     print batch_id
 print 'top3:', float(top3) / counter,'top1:',float(top1)/counter
 print dic1

@@ -6,7 +6,7 @@ import cv2
 from os import listdir
 import numpy as np
 import torch.utils.data as data
-
+from merge365 import shuf_labels
 import h5py
 class testLoader(data.Dataset):
 
@@ -18,134 +18,58 @@ class testLoader(data.Dataset):
         f = open(list_file, 'r')
         self.datas = json.load(f)
         self.num_samples = len(self.datas)
-    def prepare_datas(self):
-        name = 'scene_train_annotations_20170904.json'
-        f = open(os.path.join('/home/zhou/ai_challenger_scene_validation_20170908'
-, name))
-        datas = json.load(f)
-        num = len(datas)
-        traindatas = []
-        traininds = range(num)
-        # testdatas = []
-        # testinds = random.sample(range(num), num / 10)
-        # for ind in testinds:
-        #     testdatas.append(datas[ind])
 
-        # traininds = list(set(testinds) ^ set(range(num)))
-        for ind in traininds:
-            traindatas.append(datas[ind])
-        train = open('trainlist.json','w')
-        # test = open('testlist.json','w')
-        json.dump(traindatas,train)
-        # json.dump(testdatas,test)
-        train.close()
-        # test.close()
-        print 'prepare data successfully'
     def __getitem__(self,idx):
         data = self.datas[idx]
         image = cv2.imread(os.path.join(self.root,data['image_id']))
         label = data['label_id']
         image = cv2.resize(image,(self.image_size,self.image_size))
-        image = self.transform(image)
+        if self.transform is not  None:
+            image = self.transform(image)
         target = int(label)
         return image,target
-    #
-    # def get_avg_and_std(self):
-    #
-    #     image_path = 'scene_train_images_20170904'
-    #     name = 'scene_train_annotations_20170904.json'
-    #     f = open(os.path.join(self.path, name))
-    #     datas = json.load(f)
-    #     images = []
-    #     # labels = []
-    #     # images = np.empty((53878,448,448,3))
-    #     avg = np.array([0.,0.,0.])
-    #     std = np.array([0.,0.,0.])
-    #     for i,data in enumerate(datas):
-    #         image = cv2.imread(os.path.join(self.path, image_path, data['image_id']))
-    #         image = cv2.resize(image,(448,448))/255.
-    #         # labels.append(np.array([data['label_id']]).astype(np.int8)[np.newaxis,...])
-    #         avg = np.average(np.average(image,1),0)*((1.)/(i+1.))+(i)/(i+1.)*avg
-    #         std = np.std(np.std(image,1),0)*(1./(i+1.))+(i)/(i+1.)*std
-    #
-    #         # images[i][...] = image[...]
-    #         print avg,std
 
-        # labels = np.concatenate(labels,0)
-        # file = h5py.File('TrainSet.h5','w')
-        # file.create_dataset('images',data = images)
-        # file.create_dataset('labels',data = labels)
     def __len__(self):
         return self.num_samples
 class Loader(data.Dataset):
-
+    call = 0
     def __init__(self,root,list_file,train,transform,size ):
+
         self.root = root
         self.train = train
         self.transform = transform
         self.image_size = size
+        self.shuff = shuf_labels()
+        self.shuff.mask_select()
+        self.list_file = list_file
         f = open(list_file, 'r')
-        # self.datas = json.load(f)
         self.datas = f.readlines()
+        f.close()
         self.num_samples = len(self.datas)
-    def prepare_datas(self):
-        name = 'scene_train_annotations_20170904.json'
-        f = open(os.path.join('/home/zhou/ai_challenger_scene_validation_20170908'
-, name))
-        datas = json.load(f)
-        num = len(datas)
-        traindatas = []
-        traininds = range(num)
-        # testdatas = []
-        # testinds = random.sample(range(num), num / 10)
-        # for ind in testinds:
-        #     testdatas.append(datas[ind])
+        self.datas = random.sample(self.datas,self.num_samples)
 
-        # traininds = list(set(testinds) ^ set(range(num)))
-        for ind in traininds:
-            traindatas.append(datas[ind])
-        train = open('trainlist.json','w')
-        # test = open('testlist.json','w')
-        json.dump(traindatas,train)
-        # json.dump(testdatas,test)
-        train.close()
-        # test.close()
-        print 'prepare data successfully'
     def __getitem__(self,idx):
+        self.call+=1
         image_id,label_id = self.datas[idx].strip('\n').split(' ')
-        image = cv2.imread(os.path.join(self.root,image_id))
+        path = os.path.join(self.root,image_id.strip('/'))
+        image = cv2.imread(path)
+
         label = label_id
         if not self.image_size ==None:
             image = cv2.resize(image,(self.image_size,self.image_size))
         image = self.transform(image)
         target = int(label)
+#  if self.call == self.num_samples-1:
+#           self.call = 0
+#           self.shuff.mask_select()
+#           f = open(self.list_file, 'r')
+#           # self.datas = json.load(f)
+#           self.datas = f.readlines()
+#           f.close()
+#           self.num_samples = len(self.datas)
+#           self.datas = random.sample(self.datas, self.num_samples)
         return image,target
-    #
-    # def get_avg_and_std(self):
-    #
-    #     image_path = 'scene_train_images_20170904'
-    #     name = 'scene_train_annotations_20170904.json'
-    #     f = open(os.path.join(self.path, name))
-    #     datas = json.load(f)
-    #     images = []
-    #     # labels = []
-    #     # images = np.empty((53878,448,448,3))
-    #     avg = np.array([0.,0.,0.])
-    #     std = np.array([0.,0.,0.])
-    #     for i,data in enumerate(datas):
-    #         image = cv2.imread(os.path.join(self.path, image_path, data['image_id']))
-    #         image = cv2.resize(image,(448,448))/255.
-    #         # labels.append(np.array([data['label_id']]).astype(np.int8)[np.newaxis,...])
-    #         avg = np.average(np.average(image,1),0)*((1.)/(i+1.))+(i)/(i+1.)*avg
-    #         std = np.std(np.std(image,1),0)*(1./(i+1.))+(i)/(i+1.)*std
-    #
-    #         # images[i][...] = image[...]
-    #         print avg,std
 
-        # labels = np.concatenate(labels,0)
-        # file = h5py.File('TrainSet.h5','w')
-        # file.create_dataset('images',data = images)
-        # file.create_dataset('labels',data = labels)
     def __len__(self):
         return self.num_samples
 
@@ -165,10 +89,7 @@ class Indoor(data.Dataset):
         data = self.datas[idx].strip('\n')
         image = cv2.imread(os.path.join(self.root,data))
         label = self.map[data.split('/')[0]]
-        try:
-            image = cv2.resize(image,(self.image_size,self.image_size))
-        except:
-            pass
+        image = cv2.resize(image,(self.image_size,self.image_size))
         image = self.transform(image)
         target = int(label)
         return image,target
@@ -212,7 +133,7 @@ class Indoor(data.Dataset):
         return self.num_samples
 
 class ImgNet(data.Dataset):
-    image_size =500
+    image_size =333
     def __init__(self,root,list_file,train,transform ):
         self.root = root
         self.train = train
@@ -221,11 +142,12 @@ class ImgNet(data.Dataset):
 
         f = open(list_file, 'r')
         self.datas = f.readlines()
+        self.datas = random.sample(self.datas,100000)
         self.num_samples = len(self.datas)
 
     def __getitem__(self,idx):
-        data = self.datas[idx].strip('\n')
-        image = cv2.imread(os.path.join(self.root,data))
+        data = self.datas[idx].strip('\n').split(' ')
+        image = cv2.imread(os.path.join(self.root+data[0]))
         label = int(data[-1])
         image = cv2.resize(image,(self.image_size,self.image_size))
         image = self.transform(image)

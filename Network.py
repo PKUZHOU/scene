@@ -7,7 +7,7 @@ import torch.nn.init
 import math
 from torch_deform_conv.layers import ConvOffset2D
 # from modules import ConvOffset2d
-
+import torch.nn.init as init
 
 
 model_urls = {
@@ -387,3 +387,41 @@ class FocalLoss(nn.Module):
         if self.size_average: return loss.mean()
         else:
             return loss.sum()
+
+class soft_label_Loss(nn.Module):
+    def __init__(self, e = 0.01,size_average=True):
+        super(soft_label_Loss, self).__init__()
+        self.e = e
+        self.size_average = size_average
+
+    def forward(self, input, target):
+        if input.dim()>2:
+            input = input.view(input.size(0),input.size(1),-1)  # N,C,H,W => N,C,H*W
+            input = input.transpose(1,2)    # N,C,H*W => N,H*W,C
+            input = input.contiguous().view(-1,input.size(2))   # N,H*W,C => N*H*W,C
+        target = target.view(-1,1)
+
+        logpt_ = F.log_softmax(input)
+        logpt = logpt_.gather(1,target)
+        logpt = logpt.view(-1)
+        # pt = Variable(logpt.data.exp())
+
+        loss = -1 * (1-self.e)*logpt - self.e/80*torch.sum(logpt_,1)
+        if self.size_average: return loss.mean()
+        else:
+            return loss.sum()
+
+class ensemble_net(nn.Module):
+    def __init__(self):
+        super(ensemble_net,self).__init__()
+        self.L1 = nn.Sequential(nn.Linear(3*80,3))
+        # self.L2 = nn.Sequential(nn.Linear(256,256),nn.ReLU(inplace=True))
+        # self.drop = nn.Dropout(p = 0.5)
+        # self.L3 = nn.Sequential(nn.Linear(256,80))
+    def forward(self,x):
+        x = self.L1(x)
+        # x = self.L2(x)
+        # if self.training:
+        #     x = self.drop(x)
+        # x = self.L3(x)
+        return x

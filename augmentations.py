@@ -201,8 +201,8 @@ class RandomSampleCrop(object):
             for _ in range(50):
                 current_image = image
 
-                w = random.uniform(0.8 * width, width)
-                h = random.uniform(0.8 * height, height)
+                w = random.uniform(0.5 * width, width)
+                h = random.uniform(0.5 * height, height)
 
                 # aspect ratio constraint b/t .5 & 2
                 if h / w < 0.5 or h / w > 2:
@@ -237,7 +237,7 @@ class Expand(object):
             return image
 
         height, width, depth = image.shape
-        ratio = random.uniform(1, 1.3)
+        ratio = random.uniform(1, 1.5)
         left = random.uniform(0, width*ratio - width)
         top = random.uniform(0, height*ratio - height)
 
@@ -294,7 +294,7 @@ class PhotometricDistort(object):
             RandomContrast(),
             ConvertColor(transform='HSV'),
             RandomSaturation(),
-            RandomHue(),
+#            RandomHue(),
             ConvertColor(current='HSV', transform='BGR'),
             RandomContrast()
         ]
@@ -308,7 +308,7 @@ class PhotometricDistort(object):
         else:
             distort = Compose(self.pd[1:])
         im = distort(im)
-        return self.rand_light_noise(im)
+        return (im)
 
 
 class Augmentation(object):
